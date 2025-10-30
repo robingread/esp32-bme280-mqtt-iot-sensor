@@ -11,6 +11,11 @@ Adafruit_BME280 bme;
 
 volatile bool mqttTriggerReceived = false;
 
+// Define LED Pins
+const int POWER_LED_PIN = 4;
+const int WIFI_ERROR_LED_PIN = 16;
+const int MQTT_ERROR_LED_PIN = 17;
+
 void messageReceived(String &topic, String &payload)
 {
   Serial.println("incoming: " + topic + " - " + payload);
@@ -105,6 +110,14 @@ void publishReading()
 
 void setup()
 {
+  pinMode(POWER_LED_PIN, OUTPUT);
+  pinMode(MQTT_ERROR_LED_PIN, OUTPUT);
+  pinMode(WIFI_ERROR_LED_PIN, OUTPUT);
+
+  digitalWrite(POWER_LED_PIN, HIGH);
+  digitalWrite(MQTT_ERROR_LED_PIN, LOW);
+  digitalWrite(WIFI_ERROR_LED_PIN, LOW);
+
   Serial.begin(9600);
   connectWiFi();
   connectMQTT();
@@ -115,14 +128,32 @@ void loop()
 {
   client.loop();
 
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.println("WiFi not connected");
+    digitalWrite(WIFI_ERROR_LED_PIN, HIGH);
+    connectWiFi();
+    return;
+  }
+
+  digitalWrite(WIFI_ERROR_LED_PIN, LOW);
+
   if (!client.connected())
   {
+    Serial.println("MQTT not connected");
+    digitalWrite(MQTT_ERROR_LED_PIN, HIGH);
+    delay(100);
     connectMQTT();
+    return;
   }
+
+  digitalWrite(MQTT_ERROR_LED_PIN, LOW);
 
   if (mqttTriggerReceived)
   {
     publishReading();
     mqttTriggerReceived = false;
   }
+
+  delay(100);
 }
